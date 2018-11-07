@@ -351,6 +351,8 @@ The xADForestProperties DSC resource will manage User Principal Name (UPN) suffi
 
 ### Unreleased
 
+* Changed the behaviour of xADGroup: The member logic is not executed, if no member relatec parameter was specified ([issue #235](https://github.com/PowerShell/xActiveDirectory/issues/235)). [Claudio Spizzi (@claudiospizzi)](https://github.com/claudiospizzi)
+
 ### 2.22.0.0
 
 * Add PasswordNeverResets parameter to xADUser to facilitate user lifecycle management

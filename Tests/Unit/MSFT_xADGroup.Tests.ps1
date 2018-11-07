@@ -126,20 +126,20 @@ try
                 Assert-MockCalled -CommandName Get-ADGroup -ParameterFilter { $Credential -eq $testCredentials } -Scope It
             }
 
-            It "Calls 'Get-ADGroupMember' with 'Server' parameter when 'DomainController' specified" {
+            It "Calls 'Get-ADGroupMember' with 'Server' parameter when 'DomainController' and 'Members' specified" {
                 Mock -CommandName Get-ADGroup  -MockWith { return $fakeADGroup; }
                 Mock -CommandName Get-ADGroupMember -ParameterFilter { $Server -eq $testDomainController } -MockWith { return @($fakeADUser1, $fakeADUser2); }
 
-                Get-TargetResource @testPresentParams -DomainController $testDomainController;
+                Get-TargetResource @testPresentParams -Members @() -DomainController $testDomainController;
 
                 Assert-MockCalled -CommandName Get-ADGroupMember -ParameterFilter { $Server -eq $testDomainController } -Scope It
             }
 
-            It "Calls 'Get-ADGroupMember' with 'Credential' parameter when specified" {
+            It "Calls 'Get-ADGroupMember' with 'Credential' parameter whenand 'Members' specified" {
                 Mock -CommandName Get-ADGroup -MockWith { return $fakeADGroup; }
                 Mock -CommandName Get-ADGroupMember -ParameterFilter { $Credential -eq $testCredentials } -MockWith { return @($fakeADUser1, $fakeADUser2); }
 
-                Get-TargetResource @testPresentParams -Credential $testCredentials;
+                Get-TargetResource @testPresentParams -Members @() -Credential $testCredentials;
 
                 Assert-MockCalled -CommandName Get-ADGroupMember -ParameterFilter { $Credential -eq $testCredentials } -Scope It
             }
@@ -500,7 +500,7 @@ try
 
             It "Calls 'Set-ADGroup' with credentials when 'Ensure' is 'Present' and the group does not exist  (#106)" {
                 Mock -CommandName Get-ADGroup -MockWith { throw New-Object Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException }
-                Mock -CommandName Set-ADGroup -ParameterFilter { $Credential -eq $testCredentials } 
+                Mock -CommandName Set-ADGroup -ParameterFilter { $Credential -eq $testCredentials }
                 Mock -CommandName New-ADGroup -MockWith { return [PSCustomObject] $fakeADGroup; }
 
                 Set-TargetResource @testPresentParams -Credential $testCredentials;

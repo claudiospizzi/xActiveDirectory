@@ -116,9 +116,16 @@ function Get-TargetResource
     try
     {
         $adGroup = Get-ADGroup @adGroupParams -Property Name,GroupScope,GroupCategory,DistinguishedName,Description,DisplayName,ManagedBy,Info
-        Write-Verbose -Message ($LocalizedData.RetrievingGroupMembers -f $MembershipAttribute)
-        # Retrieve the current list of members, returning the specified membership attribute
-        [System.Array]$adGroupMembers = (Get-ADGroupMember @adGroupParams).$MembershipAttribute
+        if ($PSBoundParameters.ContainsKey('Members') -or $PSBoundParameters.ContainsKey('MembersToInclude') -or $PSBoundParameters.ContainsKey('MembersToExclude') -or $PSBoundParameters.ContainsKey('MembershipAttribute'))
+        {
+            Write-Verbose -Message ($LocalizedData.RetrievingGroupMembers -f $MembershipAttribute)
+            # Retrieve the current list of members, returning the specified membership attribute
+            [System.Array]$adGroupMembers = (Get-ADGroupMember @adGroupParams).$MembershipAttribute
+        }
+        else
+        {
+            [System.Array]$adGroupMembers = @()
+        }
         $targetResource = @{
             GroupName = $adGroup.Name
             GroupScope = $adGroup.GroupScope
@@ -454,36 +461,39 @@ function Set-TargetResource
                 Move-ADObject @moveADObjectParams -TargetPath $Path
             }
 
-            Write-Verbose -Message ($LocalizedData.RetrievingGroupMembers -f $MembershipAttribute)
-            $adGroupMembers = (Get-ADGroupMember @adGroupParams).$MembershipAttribute
-            if (-not (Test-Members -ExistingMembers $adGroupMembers -Members $Members -MembersToInclude $MembersToInclude -MembersToExclude $MembersToExclude))
+            if ($PSBoundParameters.ContainsKey('Members') -or $PSBoundParameters.ContainsKey('MembersToInclude') -or $PSBoundParameters.ContainsKey('MembersToExclude') -or $PSBoundParameters.ContainsKey('MembershipAttribute'))
             {
-                # The fact that we're in the Set method, there is no need to validate the parameter
-                # combination as this was performed in the Test method
-                if ($PSBoundParameters.ContainsKey('Members') -and -not [system.string]::IsNullOrEmpty($Members))
+                Write-Verbose -Message ($LocalizedData.RetrievingGroupMembers -f $MembershipAttribute)
+                $adGroupMembers = (Get-ADGroupMember @adGroupParams).$MembershipAttribute
+                if (-not (Test-Members -ExistingMembers $adGroupMembers -Members $Members -MembersToInclude $MembersToInclude -MembersToExclude $MembersToExclude))
                 {
-                    # Remove all existing first and add explicit members
-                    $Members = Remove-DuplicateMembers -Members $Members
-                    # We can only remove members if there are members already in the group!
-                    if ($adGroupMembers.Count -gt 0)
+                    # The fact that we're in the Set method, there is no need to validate the parameter
+                    # combination as this was performed in the Test method
+                    if ($PSBoundParameters.ContainsKey('Members') -and -not [system.string]::IsNullOrEmpty($Members))
                     {
-                        Write-Verbose -Message ($LocalizedData.RemovingGroupMembers -f $adGroupMembers.Count, $GroupName)
-                        Remove-ADGroupMember @adGroupParams -Members $adGroupMembers -Confirm:$false
+                        # Remove all existing first and add explicit members
+                        $Members = Remove-DuplicateMembers -Members $Members
+                        # We can only remove members if there are members already in the group!
+                        if ($adGroupMembers.Count -gt 0)
+                        {
+                            Write-Verbose -Message ($LocalizedData.RemovingGroupMembers -f $adGroupMembers.Count, $GroupName)
+                            Remove-ADGroupMember @adGroupParams -Members $adGroupMembers -Confirm:$false
+                        }
+                        Write-Verbose -Message ($LocalizedData.AddingGroupMembers -f $Members.Count, $GroupName)
+                        Add-ADGroupMember @adGroupParams -Members $Members
                     }
-                    Write-Verbose -Message ($LocalizedData.AddingGroupMembers -f $Members.Count, $GroupName)
-                    Add-ADGroupMember @adGroupParams -Members $Members
-                }
-                if ($PSBoundParameters.ContainsKey('MembersToInclude') -and -not [system.string]::IsNullOrEmpty($MembersToInclude))
-                {
-                    $MembersToInclude = Remove-DuplicateMembers -Members $MembersToInclude
-                    Write-Verbose -Message ($LocalizedData.AddingGroupMembers -f $MembersToInclude.Count, $GroupName)
-                    Add-ADGroupMember @adGroupParams -Members $MembersToInclude
-                }
-                if ($PSBoundParameters.ContainsKey('MembersToExclude') -and -not [system.string]::IsNullOrEmpty($MembersToExclude))
-                {
-                    $MembersToExclude = Remove-DuplicateMembers -Members $MembersToExclude
-                    Write-Verbose -Message ($LocalizedData.RemovingGroupMembers -f $MembersToExclude.Count, $GroupName)
-                    Remove-ADGroupMember @adGroupParams -Members $MembersToExclude -Confirm:$false
+                    if ($PSBoundParameters.ContainsKey('MembersToInclude') -and -not [system.string]::IsNullOrEmpty($MembersToInclude))
+                    {
+                        $MembersToInclude = Remove-DuplicateMembers -Members $MembersToInclude
+                        Write-Verbose -Message ($LocalizedData.AddingGroupMembers -f $MembersToInclude.Count, $GroupName)
+                        Add-ADGroupMember @adGroupParams -Members $MembersToInclude
+                    }
+                    if ($PSBoundParameters.ContainsKey('MembersToExclude') -and -not [system.string]::IsNullOrEmpty($MembersToExclude))
+                    {
+                        $MembersToExclude = Remove-DuplicateMembers -Members $MembersToExclude
+                        Write-Verbose -Message ($LocalizedData.RemovingGroupMembers -f $MembersToExclude.Count, $GroupName)
+                        Remove-ADGroupMember @adGroupParams -Members $MembersToExclude -Confirm:$false
+                    }
                 }
             }
         }
@@ -518,7 +528,7 @@ function Set-TargetResource
             {
                 $adGroupParams['Path'] = $Path
             }
-            
+
             <#
                 Create group
                 Try to restore account first if it exists
